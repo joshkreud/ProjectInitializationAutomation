@@ -19,13 +19,13 @@ def get_config()->configparser.ConfigParser:
     """Provides Config object from Filesystem. if not exist, interactively create
     """
     config = configparser.ConfigParser()
-    cconfig_path = 'Config.ini'
+    config_path = 'Config.ini'
     if not config.has_section('GitHub'):
         config.add_section('GitHub')
     github =config['GitHub']
     github['username'] = github.get('username',input('GitHub Username: '))
 
-    if not os.path.exists('config.ini'):
+    if not os.path.exists(config_path):
         savesett = user_yes_no_query('Do you want to create settings (Plaintext)? No will use Interactive mode')
         if not savesett:
             always_interactive = user_yes_no_query('Never ask again?')
