@@ -1,53 +1,49 @@
 import sys
 import os
-from distutils.util import strtobool
 from pathlib import Path
-import configparser
 from github import Github
-
-def user_yes_no_query(question):
-    sys.stdout.write(f'{question} [y/n]\n')
-    while True:
-        try:
-            return strtobool(input().lower())
-        except ValueError:
-            sys.stdout.write('Please respond with \'y\' or \'n\'.\n')
-
-
-
-def get_config()->configparser.ConfigParser:
-    """Provides Config object from Filesystem. if not exist, interactively create
-    """
-    config = configparser.ConfigParser()
-    config_path = 'Config.ini'
-    if not config.has_section('GitHub'):
-        config.add_section('GitHub')
-    github =config['GitHub']
-    github['username'] = github.get('username',input('GitHub Username: '))
-
-    if not os.path.exists(config_path):
-        savesett = user_yes_no_query('Do you want to create settings (Plaintext)? No will use Interactive mode')
-        if not savesett:
-            always_interactive = user_yes_no_query('Never ask again?')
-    #! Add interactive wuestions for settings creation
-    return config
+import config
+import subprocess
 
 
 def create():
     """Create Github Repository
     """
-    config = get_config()
-    username = config['GitHub']['username']
-    password = config['Github']['password']
-    path = config['Paths']['projectpath']
+    #!Implement default settings
+    inputuser = ''
+    inputpass = ''
+    inputpath = ''
+
+
+    username,password,path = config.get_config(
+        [('GitHub','username',inputuser),
+        ('GitHub','password',inputpass),
+        ('Paths','projectpath',inputpath)
+        ])
+
+    path=Path(path)
 
     folderName = str(sys.argv[1])
-    os.makedirs(path / folderName)
-    user = Github(username, password).get_user()
-    #! Add wrong login Handler
-    repo = user.create_repo(folderName)
-    print(f"Succesfully created repository {folderName}")
-    #! Return Clone URL for origin add
+    if not folderName:
+        print('no Project name specified')
+        sys.exit()
+
+    mytarget = path / folderName
+    if os.path.exists(mytarget):
+        print(f'Project: {folderName} already exists')
+        sys.exit()
+    else:
+        print(f'Making direcory: {mytarget}')
+        os.makedirs(mytarget)
+        print(f'Logging into GitHub with user: {username}')
+        user = Github(username, password).get_user()
+        #! Add wrong login Handler
+        print(f'GitHub: Creating Repo: {folderName}')
+        repo = user.create_repo(folderName)
+        repoorigin = repo.clone_url()
+        print(f"Succesfully created repository {repoorigin}")
+        pr = subprocess.call(['git', 'clone ' , str(repoorigin),mytarget])
+        #! Return Clone URL for origin add
 
 if __name__ == "__main__":
     create()
