@@ -9,3 +9,4 @@ Beefed up version of Project creator.
 - [ ] gitignore
 - [ ] cli interface
 - [ ] scaffold template integration
+- [ ] List GitHub Repos to clone
