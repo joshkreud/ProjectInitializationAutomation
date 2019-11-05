@@ -4,13 +4,12 @@ from pathlib import Path
 import github
 import config
 import subprocess
-import inquirer
+from PyInquirer import prompt
 
-
-def github_clone(repo:github.Repository,target_folder:Path):
-    """Clones Github Repository
+def github_clone(repo,Repository,target_folder:Path):
+    """Clones Github Repository to disk
     Arguments:
-        repo {github.} -- [Repo class]
+        repo {github.Repository.Repository} -- [Repo class]
         target_folder {Path} -- [where to? ]
     """
     repoorigin = repo.clone_url()
@@ -18,7 +17,7 @@ def github_clone(repo:github.Repository,target_folder:Path):
     pr = subprocess.call(['git', 'clone ' , str(repoorigin),target_folder])
     print(pr)
 
-def github_login(username:str,password:str)->github.NamedUser.NamedUser:
+def github_login(username:str,password:str):
     """Creates NamedUser
 
     Arguments:
@@ -28,9 +27,12 @@ def github_login(username:str,password:str)->github.NamedUser.NamedUser:
     Returns:
         [github.NamedUser.NamedUser] -- [user class]
     """
-    #! Implement failed loging Handler
     print(f'Logging into GitHub with user: {username}')
-    return github.Github(username, password).get_user()
+    try:
+        user = github.Github(username, password).get_user()
+        return user
+    except github.BadCredentialsException:
+        print('Wrong credentials Provided for GitHub')
 
 
 def create_projectfolder(projectfolder:Path,projectname:str):
@@ -55,7 +57,7 @@ def create_projectfolder(projectfolder:Path,projectname:str):
         os.makedirs(mytarget)
         return mytarget
 
-def select_github_repo(github_user:github.NamedUser.NamedUser)->github.Repository:
+def select_github_repo(github_user):
     """Prompts user selection for all github repos
 
     Arguments:
@@ -64,15 +66,27 @@ def select_github_repo(github_user:github.NamedUser.NamedUser)->github.Repositor
     Returns:
         [github.Repository] -- [github repo]
     """
-    allrepos = github_user.get_repos() #!May need fix if more than 30 repos exis, due to pagination
-    choice=  inquirer.list_input("Select a Repo", choices=allrepos)
+    allrepos = []
+    for repo in  github_user.get_repos(): #!May need fix if more than 30 repos exis, due to pagination
+        allrepos.append(repo.name)
+    q = [
+        {
+            'type': 'list',
+            'name': 'Repo',
+            'message': 'Wich Repo to choose?',
+            'choices': allrepos,
+            'filter': lambda val: val.lower()
+        }
+    ]
+    answer = prompt(q)
+    choice = answer['Repo']
     return github_user.get_repo(choice)
 
 
 def main():
-    """Create Github Repository
+    """Main worker GitHub
     """
-    #!Implement default settings
+    #!Implement argparser
     inputuser = ''
     inputpass = ''
     inputpath = ''
@@ -85,7 +99,10 @@ def main():
 
     path=Path(path)
     user = github_login(github_username,github_password)
+    if not user:
+        sys.exit()
     myrepo = select_github_repo(user)
+    print(f'you seleced: {myrepo.name}')
 
 if __name__ == "__main__":
     main()
