@@ -10,3 +10,4 @@ Beefed up version of Project creator.
 - [ ] cli interface
 - [ ] scaffold template integration
 - [ ] List GitHub Repos to clone
+- [ ] Handler for different git configs (different emails)
