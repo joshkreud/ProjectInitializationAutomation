@@ -122,10 +122,6 @@ def project_select_folder(project_path:Path)->Path:
 def main():
     """Main worker GitHub
     """
-    #!Implement argparser
-    inputuser = ''
-    inputpass = ''
-    inputpath = ''
 
     github_username,github_password = MYCONFIG.github_login()
     path = MYCONFIG.paths_project()
