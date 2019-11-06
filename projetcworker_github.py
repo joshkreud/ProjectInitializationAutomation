@@ -28,14 +28,15 @@ def shutil_rmtree_onerror(func, path, exc_info):
     else:
         raise
 
-def github_clone(repo,target_folder:Path):
+def github_clone(repo:github.Repository.Repository,target_folder:Path):
     """Clones Github Repository to disk
     Arguments:
         repo {github.Repository.Repository} -- [Repo class]
         target_folder {Path} -- [where to? ]
     """
     if os.path.exists(target_folder):
-        if helpers.simple_yes_no_query(f'The Target directory: "{target_folder} alredy exists. Overwrite?'):
+        if helpers.query_yes_no(f'The Target directory: "{target_folder} alredy exists. Overwrite?'):
+            print(f'Removing directory: "{target_folder}"')
             shutil.rmtree(target_folder,onerror=shutil_rmtree_onerror)
         else:
             print('Aborting Clone, Folder alredy exists!')
@@ -48,7 +49,7 @@ def github_clone(repo,target_folder:Path):
         else:
             print(f'Colne returned unexpected result: {pr}')
 
-def github_create_repo(github_user, name:str,is_private:bool=False,init_commit:bool=True,gitignore_templ:str=''):
+def github_create_repo(github_user:github.NamedUser.NamedUser, name:str,is_private:bool=False,init_commit:bool=True,gitignore_templ:str=''):
     allrepos = [repo for repo in github_user.get_repos()]
     if name in allrepos:
         print(f'The Repo: "{name}" already exists at: "{allrepos[name].clone_url}"')
@@ -56,7 +57,7 @@ def github_create_repo(github_user, name:str,is_private:bool=False,init_commit:b
     else:
         return github_user.create_repo(name,private=is_private,auto_init=init_commit,gitignore_template=gitignore_templ)
 
-def github_select_gitignore_template(gitclass)->str:
+def github_select_gitignore_template(gitclass:github.Github)->str:
     alltemplates = gitclass.get_gitignore_templates()
     alltemplates.append('No Gitignore')
     q = [
@@ -96,7 +97,7 @@ def create_projectfolder(projectfolder:Path,projectname:str):
         return mytarget
 
 
-def select_github_repo(github_user):
+def select_github_repo(github_user:github.NamedUser.NamedUser):
     """Prompts user selection for all github repos
 
     Arguments:
@@ -119,13 +120,13 @@ def select_github_repo(github_user):
     choice = answer['Repo']
     return github_user.get_repo(choice)
 
-def github_repo_select_and_clone(github_user,project_path:Path):
+def github_repo_select_and_clone(github_user:github.NamedUser.NamedUser,project_path:Path):
     myrepo = select_github_repo(github_user)
     print(f'You seleced: {myrepo.name}')
     target_path = project_path / myrepo.name
     github_clone(myrepo,target_path)
 
-def github_repo_select_and_delete(github_user,project_path:Path=None):
+def github_repo_select_and_delete(github_user:github.NamedUser.NamedUser,project_path:Path=None):
     myrepo = select_github_repo(github_user)
     repo_name = myrepo.name
     if helpers.query_text('Please type the name of the Repository to delete it THIS CANNOT BE UNDONE!: ') == repo_name:
@@ -138,7 +139,7 @@ def github_repo_select_and_delete(github_user,project_path:Path=None):
                         shutil.rmtree(target_path)
 
 
-def github_create_repo_userinp(github_class,project_path:Path):
+def github_create_repo_userinp(github_class:github.Github,project_path:Path):
     name = helpers.query_text('Enter Repo Name:')
     if name:
         gitinore = github_select_gitignore_template(github_class)
@@ -169,7 +170,7 @@ def project_select_folder(project_path:Path)->Path:
 class GitHubConfValues():
     def __init__(self,conf_path:str):
         self.config = config.ConfigHandler(conf_path)
-        self.git =None
+        self.git:github.Github =None
 
     def github_loggedin(self):
         """Get a logged in GitHub Object. Asks for userinput if needed
@@ -245,7 +246,7 @@ def main():
         elif answer=='Remove Local Repo':
             fol = project_select_folder(conf.project_path())
             if fol:
-                if helpers.simple_yes_no_query(f'Do you really want to delete: {fol}'):
+                if helpers.query_yes_no(f'Do you really want to delete: {fol}'):
                     print(f'Deleting Folder Locally: "{fol}"')
                     shutil.rmtree(fol,onerror=shutil_rmtree_onerror)
             return
