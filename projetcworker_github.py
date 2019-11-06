@@ -7,8 +7,25 @@ import subprocess
 import shutil
 from PyInquirer import prompt
 
-MYCONFIG = config.ConfigHandler('Config.ini')
 
+def shutil_rmtree_onerror(func, path, exc_info):
+    """
+    Error handler for ``shutil.rmtree``.
+
+    If the error is due to an access error (read only file)
+    it attempts to add write permission and then retries.
+
+    If the error is for another reason it re-raises the error.
+
+    Usage : ``shutil.rmtree(path, onerror=onerror)``
+    """
+    import stat
+    if not os.access(path, os.W_OK):
+        # Is the error an access error ?
+        os.chmod(path, stat.S_IWUSR)
+        func(path)
+    else:
+        raise
 
 def github_clone(repo,target_folder:Path):
     """Clones Github Repository to disk
@@ -18,38 +35,17 @@ def github_clone(repo,target_folder:Path):
     """
     if os.path.exists(target_folder):
         if config.simple_yes_no_query(f'The Target directory: "{target_folder} alredy exists. Overwrite?'):
-            shutil.rmtree(target_folder)
+            shutil.rmtree(target_folder,onerror=shutil_rmtree_onerror)
         else:
             print('Aborting Clone, Folder alredy exists!')
     if not os.path.exists(target_folder):
-        repoorigin = repo.clone_url()
+        repoorigin = repo.clone_url
         print(f"Cloning from: {repoorigin}")
-        pr = subprocess.call(['git', 'clone ' , str(repoorigin),target_folder])
-        print(pr)
-
-def github_login(username:str,password:str)->github.Github:
-    alteredsetting =False
-    """Creates Github Class and checks if login was successful
-
-    Arguments:
-        username {str} -- github User
-        password {str} -- github Password
-
-    Returns:
-        [github.NamedUser.NamedUser] -- [user class]
-    """
-    print(f'Logging into GitHub with user: {username}')
-    while True:
-        try:
-            git = github.Github(username,password)
-            mygitname = git.get_user().name
-            if alteredsetting:
-                MYCONFIG.save_file()
-            return git
-        except github.BadCredentialsException:
-            print('Wrong credentials Provided for GitHub')
-            username, password = MYCONFIG.github_login(username,password,True)
-            alteredsetting = True
+        pr = subprocess.call(['git', 'clone' , str(repoorigin),target_folder])
+        if pr == 0:
+            print(f'repository cloned successfully to: "{target_folder}"')
+        else:
+            print(f'Colne returned unexpected result: {pr}')
 
 def create_projectfolder(projectfolder:Path,projectname:str):
     """Creates Project folder on  filesystem
@@ -119,15 +115,61 @@ def project_select_folder(project_path:Path)->Path:
     if os.path.exists(answer):
         return answer
 
+
+class GitHubConfValues():
+    def __init__(self,conf_path:str):
+        self.config = config.ConfigHandler(conf_path)
+        self.git =None
+
+    def github_loggedin(self):
+        """Get a logged in GitHub Object. Asks for userinput if needed
+
+        Returns:
+            [type] -- [Github Object]
+        """
+        if not self.git:
+            github_username,github_password = self.config.github_login()
+            self.git = self.github_login(github_username,github_password)
+        return self.git
+    def project_path(self):
+        """Get Project path from settings or asks for it
+
+        Returns:
+            [type] -- [description]
+        """
+        self.path = self.config.paths_project()
+        return self.path
+
+    def github_login(self,username:str,password:str)->github.Github:
+        alteredsetting =False
+        """Creates Github Class and checks if login was successful
+
+        Arguments:
+            username {str} -- github User
+            password {str} -- github Password
+
+        Returns:
+            [github.NamedUser.NamedUser] -- [user class]
+        """
+        print(f'Logging into GitHub with user: {username}')
+        while True:
+            try:
+                git = github.Github(username,password)
+                mygitname = git.get_user().name
+                if alteredsetting:
+                    self.config.save_file()
+                return git
+            except github.BadCredentialsException:
+                print('Wrong credentials Provided for GitHub')
+                username, password = self.config.github_login(username,password,True)
+                alteredsetting = True
+
+
+
 def main():
     """Main worker GitHub
     """
-
-    github_username,github_password = MYCONFIG.github_login()
-    path = MYCONFIG.paths_project()
-
-    git = github_login(github_username,github_password)
-    user = git.get_user()
+    conf = GitHubConfValues('Config.ini')
 
     q = [
         {
@@ -144,13 +186,16 @@ def main():
     while True:
         answer = prompt(q)['action']
         if answer == 'Clone Repo from GitHub':
-            github_select_and_clone(user,path)
+            github_select_and_clone(conf.github_loggedin().get_user(),conf.project_path())
             return
         elif answer=='Exit!':
             return
         elif answer=='Remove Local Repo':
-            fol = project_select_folder(path)
-            print(f'selected: {fol}')
+            fol = project_select_folder(conf.project_path())
+            if fol:
+                if config.simple_yes_no_query(f'Do you really want to delete: {fol}'):
+                    print(f'Deleting Folder Locally: "{fol}"')
+                    shutil.rmtree(fol,onerror=shutil_rmtree_onerror)
             return
         else:
             print('Unsupported Function Selected')
