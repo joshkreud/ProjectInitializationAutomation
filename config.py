@@ -92,20 +92,18 @@ class ConfigHandler():
             'name': 'GitHub_User',
             'message': 'Enter the GitHub UserName',
             'default': str(user_name),
-            'validate': lambda val: not val or 'Please enter a Username..'
         },
         {
             'type': 'input',
             'name': 'GitHub_Password',
             'message': 'Enter Github Password:',
             'default': str(password),
-            'validate': lambda val: not val or 'Please enter a Password..'
         }]
 
         if force_inquire or not user_name or not password:
             answers = prompt(questions)
-            user_name = answers['GitHub_User']
-            password = answers['GitHub_Password']
+            user_name = self.option('GitHub','username', answers['GitHub_User'])
+            password = self.option('GitHub','password',answers['GitHub_Password'])
             self.settchanged = True
         return (user_name,password)
 
@@ -128,12 +126,12 @@ class ConfigHandler():
             'name': 'Project_Path',
             'message': 'Enter a Project Path',
             'default': str(path),
-            'validate': lambda val: not val or 'Please enter a Path..'
+            'validate': lambda val: val if os.path.exists(val) else 'Please enter an existing Path \n'
         }]
 
         if force_inquire or not path:
             answers = prompt(questions)
-            path = answers['Project_Path']
+            path = self.option('Paths','projectpath', answers['Project_Path'])
             self.settchanged = True
         return path
 
