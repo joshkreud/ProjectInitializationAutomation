@@ -1,15 +1,20 @@
 Beefed up version of Project creator.
 
 # Instructions
+
+## Installation
 ```
 git clone https://github.com/joshkreud/ProjectInitializationAutomation.git
 pip install -r requirements.txt
 python projectworker_github.py
 ```
-The script should ask for github login data and a project folder.
-It will also ask you if it should save it. Saved info is not asked again.
+
+## Usage
+
+The script will ask for github login data and a project folder.
+It will also ask you if it should save the inputs.
 Settings will be stored in **PLAINTEXT!** (Beware of your passwords)
-Should work on all major platforms, though it's only tested on Windows.
+Should work on all major that can run python, though it's only tested on Windows.
 
 Current Features:
 1. Create new Repo:
