@@ -68,12 +68,14 @@ class ConfigHandler():
             'name': 'GitHub_User',
             'message': 'Enter the GitHub UserName',
             'default': str(user_name),
+            'validate': lambda val: not val or 'Please enter a Username..'
         },
         {
             'type': 'input',
             'name': 'GitHub_Password',
             'message': 'Enter Github Password:',
             'default': str(password),
+            'validate': lambda val: not val or 'Please enter a Password..'
         }]
 
         if force_inquire or not user_name or not password:
@@ -93,7 +95,7 @@ class ConfigHandler():
             'name': 'Project_Path',
             'message': 'Enter a Project Path',
             'default': str(path),
-            'validate': lambda val: not val or 'Please enter a Password..'
+            'validate': lambda val: not val or 'Please enter a Path..'
         }]
 
         if force_inquire or not path:
