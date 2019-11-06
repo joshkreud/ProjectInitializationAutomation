@@ -6,6 +6,9 @@ import config
 import subprocess
 from PyInquirer import prompt
 
+MYCONFIG = config.ConfigHandler('Config.ini')
+
+
 def github_clone(repo,Repository,target_folder:Path):
     """Clones Github Repository to disk
     Arguments:
@@ -17,7 +20,8 @@ def github_clone(repo,Repository,target_folder:Path):
     pr = subprocess.call(['git', 'clone ' , str(repoorigin),target_folder])
     print(pr)
 
-def github_login(username:str,password:str):
+def github_login(username:str,password:str)->github.Github:
+    alteredsetting =False
     """Creates NamedUser
 
     Arguments:
@@ -28,12 +32,17 @@ def github_login(username:str,password:str):
         [github.NamedUser.NamedUser] -- [user class]
     """
     print(f'Logging into GitHub with user: {username}')
-    try:
-        user = github.Github(username, password).get_user()
-        return user
-    except github.BadCredentialsException:
-        print('Wrong credentials Provided for GitHub')
-
+    while True:
+        try:
+            git = github.Github(username,password)
+            mygitname = git.get_user().name
+            if alteredsetting:
+                MYCONFIG.save_file()
+            return git
+        except github.BadCredentialsException:
+            print('Wrong credentials Provided for GitHub')
+            username, password = MYCONFIG.github_login(username,password,True)
+            alteredsetting = True
 
 def create_projectfolder(projectfolder:Path,projectname:str):
     """Creates Project folder on  filesystem
@@ -67,7 +76,7 @@ def select_github_repo(github_user):
         [github.Repository] -- [github repo]
     """
     allrepos = []
-    for repo in  github_user.get_repos(): #!May need fix if more than 30 repos exis, due to pagination
+    for repo in  github_user.get_repos():
         allrepos.append(repo.name)
     q = [
         {
@@ -91,14 +100,11 @@ def main():
     inputpass = ''
     inputpath = ''
 
-    github_username,github_password,path = config.get_config(
-        [('GitHub','username',inputuser),
-        ('GitHub','password',inputpass),
-        ('Paths','projectpath',inputpath)
-        ])
+    github_username,github_password = MYCONFIG.github_login()
+    path = MYCONFIG.paths_project()
 
-    path=Path(path)
-    user = github_login(github_username,github_password)
+    git = github_login(github_username,github_password)
+    user = git.get_user()
     if not user:
         sys.exit()
     myrepo = select_github_repo(user)

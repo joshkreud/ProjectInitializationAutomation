@@ -1,99 +1,122 @@
 import configparser
 import sys
 import os
+from pathlib import Path
 from distutils.util import strtobool
 from typing import Dict, Callable,Tuple,List
+from PyInquirer import prompt
 
-SETTCHANGE = False
+def simple_yes_no_query(question,default:bool=False):
+    q = [
+        {
+        'type': 'confirm',
+        'message': question,
+        'name': 'quest',
+        'default': default,
+        }
+    ]
+    return prompt(q)['quest']
 
-def user_yes_no_query(question):
-    sys.stdout.write(f'{question} [y/n]\n')
-    while True:
-        try:
-            return strtobool(input().lower())
-        except ValueError:
-            sys.stdout.write('Please respond with \'y\' or \'n\'.\n')
+class ConfigHandler():
+    def __init__(self, config_path:str):
+        self.settchanged = False
+        self.config_path = config_path
+        self.config = configparser.ConfigParser()
+        self.read_file()
 
-def config_getadd_section(config:configparser.ConfigParser, name:str):
-    """Gets or adds config section
+    def section(self, section_name:str):
+        """Gets or adds config section
 
-    Arguments:
-        config {configparser.ConfigParser}
-        name {str} -- [section name]
+        Arguments:
+            name {str} -- [section name]
 
-    Returns:
-        [section] -- [section]
-    """
-    if not config.has_section(name):
-        config.add_section(name)
-    return config[name]
+        Returns:
+            [section] -- [section]
+        """
+        if not self.config.has_section(section_name):
+            self.config.add_section(section_name)
+        return self.config[section_name]
 
-def config_getadd(config:configparser.ConfigParser, setting:Tuple[str,str,str]):
-    """Gets or adds a config setting
+    def option(self, section:str,option:str,value=None):
+        """Gets, Adds, Sets value
 
-    Arguments:
-        config {configparser.ConfigParser} -- [the configparser]
-        setting {Tuple[str,str,str]} -- [Tuple(Section,Setting,Default<-To skip custom formulas)]
+        Arguments:
+            section {str} -- [section of option]
+            option {str} -- [option]
 
-    Returns:
-        [type] -- [setting]
-    """
-    section, value, default = setting
-    mysec =  config_getadd_section(config,section)
-    if not mysec.get(value,None):
-        global SETTCHANGE
-        SETTCHANGE = True
-        if default:
-            mysec[value] = default
-        else:
-            mysec[value] = get_inputFunction(setting)
-    return mysec.get(value)
+        Keyword Arguments:
+            value {[type]} -- [if value should be set] (default: {None})
 
-def get_inputFunction(setting:Tuple[str,str])->str:
-    """Calls fuction to get setting
+        Returns:
+            [type] -- [description]
+        """
+        mysec =  self.section(section)
+        if value:
+            if mysec.get(option,None) != value:
+                self.settchanged = True
+            mysec[option] = value
+        return mysec.get(option,'')
 
-    Arguments:
-        setting {Tuple[str,str]} -- [Tuple(Section,Setting)]
+    def github_login(self,user_name:str='',password:str='',force_inquire:bool=False)->Tuple[str,str]:
+        if not user_name:
+            user_name = self.option('GitHub','username')
+        if not password:
+            password = self.option('GitHub','password')
 
-    Raises:
-        ValueError: ["If no function is defined for the Setting"]
+        questions =  [{
+            'type': 'input',
+            'name': 'GitHub_User',
+            'message': 'Enter the GitHub UserName',
+            'default': str(user_name),
+        },
+        {
+            'type': 'input',
+            'name': 'GitHub_Password',
+            'message': 'Enter Github Password:',
+            'default': str(password),
+        }]
 
-    Returns:
-        str -- [Fundtion Result]
-    """
-    inputfunctions ={
-        ('GitHub','username'):(input,'Github Username: '),
-        ('GitHub','password'):(input,'GitHub Password:'),
-        ('Paths','projectpath'):(input,'Projects Path: ')
-    }
-    inp = inputfunctions.get(setting[0:2],None)
-    if not inp:
-        raise ValueError('No inputquestion for setting')
-        return ''
-    else:
-        return inp[0](*inp[1:])
+        if force_inquire or not user_name or not password:
+            answers = prompt(questions)
+            user_name = answers['GitHub_User']
+            password = answers['GitHub_Password']
+            self.settchanged = True
+        return (user_name,password)
 
-def get_config(conf:List[Tuple[str,str,str]])->Tuple:
-    """Fills configparser and returns tuple of config results
-        if Default is provided, there will be no custom function called. (Mostly user input)
-    Arguments:
-        conf {List[Tuple[str,str,str]]} -- [Tuple(Section,Setting,Default)]
+    def paths_project(self,path:Path=None,force_inquire:bool=False)->Path:
+        if not path:
+            path = Path(self.option('Paths','projectpath'))
 
-    Returns:
-        Tuple -- [Setting result for each listentry]
-    """
+        questions =  [
+        {
+            'type': 'input',
+            'name': 'Project_Path',
+            'message': 'Enter a Project Path',
+            'default': str(path),
+            'validate': lambda val: not val or 'Please enter a Password..'
+        }]
 
-    config = configparser.ConfigParser()
-    config_path = 'Config.ini'
-    config.read(config_path)
-    result =[]
-    for sett in conf:
-        result.append(config_getadd(config,sett))
+        if force_inquire or not path:
+            answers = prompt(questions)
+            path = answers['Project_Path']
+            self.settchanged = True
+        return path
 
-    if SETTCHANGE:
-        savesett = user_yes_no_query('Do you want to create settings for the previously entered values?')
-        if savesett:
-            with open(config_path, 'w') as configfile:
-                config.write(configfile)
-    return tuple(result)
-    return config
+
+    def save_file(self,nointeract:bool=False):
+        """Saves the settingsfile, if it was changed, and aks user input
+
+        Arguments:
+            config {configparser.ConfigParser} -- [the conf to save]
+        """
+        if self.settchanged:
+            if nointeract:
+                savesett = True
+            else:
+                savesett = simple_yes_no_query('Do you want to create settings for the previously entered values?')
+            if savesett:
+                with open(self.config_path, 'w') as configfile:
+                    self.config.write(configfile)
+
+    def read_file(self):
+        self.config.read(self.config_path)
