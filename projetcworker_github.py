@@ -22,7 +22,7 @@ def github_clone(repo,Repository,target_folder:Path):
 
 def github_login(username:str,password:str)->github.Github:
     alteredsetting =False
-    """Creates NamedUser
+    """Creates Github Class and checks if login was successful
 
     Arguments:
         username {str} -- github User

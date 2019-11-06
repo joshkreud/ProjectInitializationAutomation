@@ -6,7 +6,18 @@ from distutils.util import strtobool
 from typing import Dict, Callable,Tuple,List
 from PyInquirer import prompt
 
-def simple_yes_no_query(question,default:bool=False):
+def simple_yes_no_query(question:str,default:bool=False)->bool:
+    """Simple yex/no query
+
+    Arguments:
+        question {[str]} -- [the question to prompt]
+
+    Keyword Arguments:
+        default {bool} -- [the default answer when pressing enter] (default: {False})
+
+    Returns:
+        [bool]
+    """
     q = [
         {
         'type': 'confirm',
@@ -18,7 +29,10 @@ def simple_yes_no_query(question,default:bool=False):
     return prompt(q)['quest']
 
 class ConfigHandler():
+    """Class to handle onfigurations. Can save, read, and interactively ask questions about settings
+    """
     def __init__(self, config_path:str):
+
         self.settchanged = False
         self.config_path = config_path
         self.config = configparser.ConfigParser()
@@ -58,6 +72,16 @@ class ConfigHandler():
         return mysec.get(option,'')
 
     def github_login(self,user_name:str='',password:str='',force_inquire:bool=False)->Tuple[str,str]:
+        """Get GitHub Login information
+
+        Keyword Arguments:
+            user_name {str} -- [default user to show in prompt] (default: {''})
+            password {str} -- [default password to show in prompt] (default: {''})
+            force_inquire {bool} -- [also ask input, if no value set ] (default: {False})
+
+        Returns:
+            Tuple[str,str] -- [username, password]
+        """
         if not user_name:
             user_name = self.option('GitHub','username')
         if not password:
@@ -86,6 +110,15 @@ class ConfigHandler():
         return (user_name,password)
 
     def paths_project(self,path:Path=None,force_inquire:bool=False)->Path:
+        """gets the Project path setting
+
+        Keyword Arguments:
+            path {Path} -- [default path to show] (default: {None})
+            force_inquire {bool} -- [alsways ask userinput] (default: {False})
+
+        Returns:
+            Path -- [projectpath]
+        """
         if not path:
             path = Path(self.option('Paths','projectpath'))
 
@@ -106,10 +139,10 @@ class ConfigHandler():
 
 
     def save_file(self,nointeract:bool=False):
-        """Saves the settingsfile, if it was changed, and aks user input
+        """Save config file if changed
 
-        Arguments:
-            config {configparser.ConfigParser} -- [the conf to save]
+        Keyword Arguments:
+            nointeract {bool} -- [skip user interaction] (default: {False})
         """
         if self.settchanged:
             if nointeract:
@@ -121,4 +154,6 @@ class ConfigHandler():
                     self.config.write(configfile)
 
     def read_file(self):
+        """Reads the config file
+        """
         self.config.read(self.config_path)
