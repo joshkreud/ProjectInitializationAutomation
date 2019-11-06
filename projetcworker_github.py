@@ -48,13 +48,30 @@ def github_clone(repo,target_folder:Path):
         else:
             print(f'Colne returned unexpected result: {pr}')
 
-def github_create_repo(github_user, name:str):
+def github_create_repo(github_user, name:str,is_private:bool=False,init_commit:bool=True,gitignore_templ:str=''):
     allrepos = [repo for repo in github_user.get_repos()]
     if name in allrepos:
         print(f'The Repo: "{name}" already exists at: "{allrepos[name].clone_url}"')
         return
     else:
-        return github_user.create_repo(name)
+        return github_user.create_repo(name,private=is_private,auto_init=init_commit,gitignore_template=gitignore_templ)
+
+def github_select_gitignore_template(gitclass)->str:
+    alltemplates = gitclass.get_gitignore_templates()
+    alltemplates.append('No Gitignore')
+    q = [
+        {
+            'type': 'list',
+            'name': 'Gitignore Template',
+            'message': 'Select Gitignore Template',
+            'choices': alltemplates,
+        }
+    ]
+    answer = prompt(q)['Gitignore Template']
+    if answer == 'No Gitignore':
+        return
+    else:
+        return answer
 
 def create_projectfolder(projectfolder:Path,projectname:str):
     """Creates Project folder on  filesystem
@@ -96,28 +113,42 @@ def select_github_repo(github_user):
             'name': 'Repo',
             'message': 'Wich Repo to choose?',
             'choices': allrepos,
-            'filter': lambda val: val.lower()
         }
     ]
     answer = prompt(q)
     choice = answer['Repo']
     return github_user.get_repo(choice)
 
-def github_select_and_clone(github_user,project_path:Path):
+def github_repo_select_and_clone(github_user,project_path:Path):
     myrepo = select_github_repo(github_user)
     print(f'You seleced: {myrepo.name}')
     target_path = project_path / myrepo.name
     github_clone(myrepo,target_path)
 
-def github_create_repo_userinp(github_user,project_path:Path):
+def github_repo_select_and_delete(github_user,project_path:Path=None):
+    myrepo = select_github_repo(github_user)
+    repo_name = myrepo.name
+    if helpers.query_text('Please type the name of the Repository to delete it THIS CANNOT BE UNDONE!: ') == repo_name:
+        if helpers.query_yes_no(f'Really delete: {repo_name}'):
+            myrepo.delete()
+            if project_path:
+                target_path = project_path / repo_name
+                if os.path.exists(target_path):
+                    if helpers.query_yes_no(f'Repository: "{repo_name}" was found in: "{target_path}". Delete?'):
+                        shutil.rmtree(target_path)
+
+
+def github_create_repo_userinp(github_class,project_path:Path):
     name = helpers.query_text('Enter Repo Name:')
     if name:
-        myrepo = github_create_repo(github_user,name)
+        gitinore = github_select_gitignore_template(github_class)
+        private = helpers.query_yes_no('Should the repo Be Public?')
+        myrepo = github_create_repo(github_class.get_user(),name,private,True,gitinore)
         if not myrepo:
             print(f"couldn't create repo: {name}")
         else:
             target_path = project_path / myrepo.name
-            github_clone(myrepo,)
+            github_clone(myrepo,target_path)
 
 def project_select_folder(project_path:Path)->Path:
     allfolders = [f.name for f in project_path.glob('*') if f.is_dir()]
@@ -197,8 +228,9 @@ def main():
         'message': 'What to do?',
         'choices': [
             'Clone Repo from GitHub',
-            'Create GitHub Repo'
+            'Create GitHub Repo',
             'Remove Local Repo',
+            'Remove Repo from GitHub',
             'Exit!'],
         }
     ]
@@ -206,7 +238,7 @@ def main():
     while True:
         answer = prompt(q)['action']
         if answer == 'Clone Repo from GitHub':
-            github_select_and_clone(conf.github_loggedin().get_user(),conf.project_path())
+            github_repo_select_and_clone(conf.github_loggedin().get_user(),conf.project_path())
             return
         elif answer=='Exit!':
             return
@@ -218,7 +250,10 @@ def main():
                     shutil.rmtree(fol,onerror=shutil_rmtree_onerror)
             return
         elif answer == 'Create GitHub Repo':
-            github_create_repo_userinp(conf.github_loggedin().get_user(),conf.project_path())
+            github_create_repo_userinp(conf.github_loggedin(),conf.project_path())
+            return
+        elif answer == 'Remove Repo from GitHub':
+            github_repo_select_and_delete(conf.github_loggedin().get_user(),conf.project_path())
             return
         else:
             print('Unsupported Function Selected')
