@@ -5,28 +5,7 @@ from pathlib import Path
 from distutils.util import strtobool
 from typing import Dict, Callable,Tuple,List
 from PyInquirer import prompt
-
-def simple_yes_no_query(question:str,default:bool=False)->bool:
-    """Simple yex/no query
-
-    Arguments:
-        question {[str]} -- [the question to prompt]
-
-    Keyword Arguments:
-        default {bool} -- [the default answer when pressing enter] (default: {False})
-
-    Returns:
-        [bool]
-    """
-    q = [
-        {
-        'type': 'confirm',
-        'message': question,
-        'name': 'quest',
-        'default': default,
-        }
-    ]
-    return prompt(q)['quest']
+import helpers
 
 class ConfigHandler():
     """Class to handle onfigurations. Can save, read, and interactively ask questions about settings
@@ -146,7 +125,7 @@ class ConfigHandler():
             if nointeract:
                 savesett = True
             else:
-                savesett = simple_yes_no_query('Do you want to create settings for the previously entered values?')
+                savesett = helpers.query_yes_no('Do you want to create settings for the previously entered values?')
             if savesett:
                 with open(self.config_path, 'w') as configfile:
                     self.config.write(configfile)

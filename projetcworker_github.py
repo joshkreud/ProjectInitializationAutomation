@@ -6,6 +6,7 @@ import config
 import subprocess
 import shutil
 from PyInquirer import prompt
+import helpers
 
 
 def shutil_rmtree_onerror(func, path, exc_info):
@@ -34,7 +35,7 @@ def github_clone(repo,target_folder:Path):
         target_folder {Path} -- [where to? ]
     """
     if os.path.exists(target_folder):
-        if config.simple_yes_no_query(f'The Target directory: "{target_folder} alredy exists. Overwrite?'):
+        if helpers.simple_yes_no_query(f'The Target directory: "{target_folder} alredy exists. Overwrite?'):
             shutil.rmtree(target_folder,onerror=shutil_rmtree_onerror)
         else:
             print('Aborting Clone, Folder alredy exists!')
@@ -46,6 +47,14 @@ def github_clone(repo,target_folder:Path):
             print(f'repository cloned successfully to: "{target_folder}"')
         else:
             print(f'Colne returned unexpected result: {pr}')
+
+def github_create_repo(github_user, name:str):
+    allrepos = [repo for repo in github_user.get_repos()]
+    if name in allrepos:
+        print(f'The Repo: "{name}" already exists at: "{allrepos[name].clone_url}"')
+        return
+    else:
+        return github_user.create_repo(name)
 
 def create_projectfolder(projectfolder:Path,projectname:str):
     """Creates Project folder on  filesystem
@@ -69,6 +78,7 @@ def create_projectfolder(projectfolder:Path,projectname:str):
         os.makedirs(mytarget)
         return mytarget
 
+
 def select_github_repo(github_user):
     """Prompts user selection for all github repos
 
@@ -78,9 +88,8 @@ def select_github_repo(github_user):
     Returns:
         [github.Repository] -- [github repo]
     """
-    allrepos = []
-    for repo in  github_user.get_repos():
-        allrepos.append(repo.name)
+    allrepos = [repo.name for repo in github_user.get_repos()]
+
     q = [
         {
             'type': 'list',
@@ -99,6 +108,16 @@ def github_select_and_clone(github_user,project_path:Path):
     print(f'You seleced: {myrepo.name}')
     target_path = project_path / myrepo.name
     github_clone(myrepo,target_path)
+
+def github_create_repo_userinp(github_user,project_path:Path):
+    name = helpers.query_text('Enter Repo Name:')
+    if name:
+        myrepo = github_create_repo(github_user,name)
+        if not myrepo:
+            print(f"couldn't create repo: {name}")
+        else:
+            target_path = project_path / myrepo.name
+            github_clone(myrepo,)
 
 def project_select_folder(project_path:Path)->Path:
     allfolders = [f.name for f in project_path.glob('*') if f.is_dir()]
@@ -178,6 +197,7 @@ def main():
         'message': 'What to do?',
         'choices': [
             'Clone Repo from GitHub',
+            'Create GitHub Repo'
             'Remove Local Repo',
             'Exit!'],
         }
@@ -193,9 +213,12 @@ def main():
         elif answer=='Remove Local Repo':
             fol = project_select_folder(conf.project_path())
             if fol:
-                if config.simple_yes_no_query(f'Do you really want to delete: {fol}'):
+                if helpers.simple_yes_no_query(f'Do you really want to delete: {fol}'):
                     print(f'Deleting Folder Locally: "{fol}"')
                     shutil.rmtree(fol,onerror=shutil_rmtree_onerror)
+            return
+        elif answer == 'Create GitHub Repo':
+            github_create_repo_userinp(conf.github_loggedin().get_user(),conf.project_path())
             return
         else:
             print('Unsupported Function Selected')
