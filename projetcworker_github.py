@@ -41,9 +41,9 @@ def github_clone(repo:github.Repository.Repository,target_folder:Path):
         else:
             print('Aborting Clone, Folder alredy exists!')
     if not os.path.exists(target_folder):
-        repoorigin = repo.clone_url
+        repoorigin = str(repo.clone_url)
         print(f"Cloning from: {repoorigin}")
-        pr = subprocess.call(['git', 'clone' , str(repoorigin),target_folder])
+        pr = subprocess.call(['git', 'clone' , repoorigin,str(target_folder)])
         if pr == 0:
             print(f'repository cloned successfully to: "{target_folder}"')
         else:
@@ -132,7 +132,7 @@ def github_repo_select_and_clone(github_user:github.NamedUser.NamedUser,project_
 def github_repo_select_and_delete(github_user:github.NamedUser.NamedUser,project_path:Path=None):
     myrepo = select_github_repo(github_user)
     repo_name = myrepo.name
-    if helpers.query_text('Please type the name of the Repository to delete it THIS CANNOT BE UNDONE!: ') == repo_name:
+    if helpers.query_text('Please type the name of the Repository to delete it. THIS CANNOT BE UNDONE!: ') == repo_name:
         if helpers.query_yes_no(f'Really delete: {repo_name}'):
             myrepo.delete()
             if project_path:
@@ -217,8 +217,6 @@ class GitHubConfValues():
                 print('Wrong credentials Provided for GitHub')
                 username, password = self.config.github_login(username,password,True)
                 alteredsetting = True
-
-
 
 def main():
     """Main worker GitHub
