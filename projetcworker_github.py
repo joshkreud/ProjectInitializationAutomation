@@ -117,8 +117,11 @@ def select_github_repo(github_user:github.NamedUser.NamedUser):
         }
     ]
     answer = prompt(q)
-    choice = answer['Repo']
-    return github_user.get_repo(choice)
+    try:
+        choice = answer['Repo']
+        return github_user.get_repo(choice)
+    except:
+        pass
 
 def github_repo_select_and_clone(github_user:github.NamedUser.NamedUser,project_path:Path):
     myrepo = select_github_repo(github_user)
